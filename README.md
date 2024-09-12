@@ -1,6 +1,6 @@
-# GitHub Issue Guidance API
+# GitHub Issue Guide
 
-This project provides an API that generates step-by-step guidance for solving GitHub issues using AI-powered assistance.
+This project provides step-by-step AI-powered guidance for solving GitHub issues.
 
 ## Table of Contents
 
@@ -16,8 +16,8 @@ This project provides an API that generates step-by-step guidance for solving Gi
 ## Features
 
 - Fetches GitHub issue details using the GitHub API
-- Generates step-by-step guidance for solving issues using Google's Generative AI (Gemini Pro)
-- Provides clear instructions for novice GitHub users
+- Generates step-by-step guidance for solving issues using Google's Generative AI (Gemini 1.5Flash)
+- Provides clear instructions for new and eager to contribute GitHub users
 
 ## Prerequisites
 
@@ -32,18 +32,14 @@ This project provides an API that generates step-by-step guidance for solving Gi
    cd github-issue-guidance-api
 
 2. Install dependencies:
-   npm install
-   # or
-   yarn install
+   `npm install` or `yarn install`
 
 3. Set up environment variables (see [Environment Variables](#environment-variables) section)
 
 ## Usage
 
 Start the server:
-npm start
-# or
-yarn start
+`npm start` or `yarn start`
 
 The server will run on `http://localhost:3001` by default.
 

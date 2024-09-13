@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import './App.css';
 
 function App() {
@@ -42,8 +43,7 @@ function App() {
       </form>
       {guidance && (
         <div className="guidance">
-          <h2>Guidance:</h2>
-          <pre>{guidance}</pre>
+          <ReactMarkdown>{guidance}</ReactMarkdown>
         </div>
       )}
     </div>

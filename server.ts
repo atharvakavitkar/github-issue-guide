@@ -34,13 +34,21 @@ app.post('/api/guidance', async (req, res) => {
 Title: ${issueData.title}
 Description: ${issueData.body}
 
-Include detailed information on:
-1. Setting up the development environment
-2. Forking the repository
-3. Creating a new branch
-4. Making the necessary changes
-5. Committing and pushing the changes
-6. Creating a pull request
+Your response should be structured as follows:
+
+Issue Explanation:
+  - Explain what the issue is about
+  - Clarify any technical terms or concepts that a novice might not understand
+  - Explain why this issue is important to address
+
+Step-by-step Guidance:
+   Include detailed information on:
+    1. Setting up the development environment  
+    2. Forking the repository  
+    3. Creating a new branch  
+    4. Making the necessary changes  
+    5. Committing and pushing the changes  
+    6. Creating a pull request
 
 Provide clear, concise steps that a beginner can easily follow.`;
 

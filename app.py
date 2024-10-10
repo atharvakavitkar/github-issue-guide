@@ -3,7 +3,7 @@ import requests
 import os
 from dotenv import load_dotenv
 from google.generativeai import GenerativeModel, configure
-
+from git import Repo
 # Load environment variables
 load_dotenv()
 
@@ -12,6 +12,23 @@ configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Initialize Generative AI model
 model = GenerativeModel("gemini-1.5-flash")
+
+def download_repo(repo_url):
+    repo = None
+    repo_dir = repo_url.split("/")[-1].split(".")[0]
+    download_dir = os.path.join("temp",repo_dir)
+    try:
+        if not os.path.exists(download_dir):
+            os.makedirs(download_dir)
+            print("Downloading Repo..")
+            repo = Repo.clone_from(repo_url, download_dir)
+            print("Download complete.")
+        else:
+            print("Repo already downloaded..")
+            repo = Repo(download_dir)
+    except Exception as e:
+        print(e)
+    return repo
 
 def get_issue_details(issue_url):
     # Extract owner, repo, and issue number from the URL
@@ -22,6 +39,7 @@ def get_issue_details(issue_url):
     # Fetch issue details from GitHub API
     headers = {"Authorization": f"token {os.getenv('GITHUB_TOKEN')}"}
     response = requests.get(f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}", headers=headers)
+    print(response.json())
     return response.json()
 
 def generate_guidance(issue_data):
@@ -57,9 +75,23 @@ issue_url = st.text_input("Enter GitHub issue URL")
 
 if st.button("Get Guidance"):
     if issue_url:
-        with st.spinner("Generating guidance..."):
+        with st.spinner("Downloading repository..."):
+            repo_url = issue_url.split("/issues")[0]
+            try:
+                repo = download_repo(repo_url)
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+        
+
+        with st.spinner("Getting issue details..."):
             try:
                 issue_data = get_issue_details(issue_url)
+
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+        
+        with st.spinner("Generating guidance..."):
+            try:
                 guidance = generate_guidance(issue_data)
                 st.markdown(guidance)
             except Exception as e:

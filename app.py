@@ -30,6 +30,20 @@ def download_repo(repo_url):
         print(e)
     return repo
 
+def get_dir_struct_str(tree, indent_level=0):
+    tree_str = ""
+    indent = " " * (indent_level * 4)  # Indentation for readability
+
+    for item in tree:
+        if item.type == "tree":  # If it's a directory (tree)
+            tree_str += f"{indent}{item.name} {{\n"  # Opening brace for directory
+            tree_str += get_dir_struct_str(item, indent_level + 1)  # Recursively process subdirectories
+            tree_str += f"{indent}}}\n"  # Closing brace for directory
+        else:  # If it's a file (blob)
+            tree_str += f"{indent}{item.name}\n"  # File name without braces
+
+    return tree_str
+
 def get_issue_details(issue_url):
     # Extract owner, repo, and issue number from the URL
     parts = issue_url.split('/')
@@ -76,9 +90,19 @@ issue_url = st.text_input("Enter GitHub issue URL")
 if st.button("Get Guidance"):
     if issue_url:
         with st.spinner("Downloading repository..."):
-            repo_url = issue_url.split("/issues")[0]
             try:
+                repo_url = issue_url.split("/issues")[0]
                 repo = download_repo(repo_url)
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+        
+        with st.spinner("Creating directory structure..."):            
+            try:
+                # Get the root tree of the repo
+                repo_tree = repo.tree()
+        
+                # Start the tree string with the repo root in curly braces
+                repo_structure = f"repo {{\n{get_dir_struct_str(repo_tree, 1)}}}"
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
         

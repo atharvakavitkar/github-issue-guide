@@ -7,6 +7,8 @@ GitHub Issue Guide is a Streamlit-based web application that provides step-by-st
 ## Features
 
 - Parse GitHub issue URLs
+- Clone GitHub repositories locally
+- Extract the directory structure of the repository
 - Fetch issue details using GitHub API
 - Generate comprehensive guidance using Google's Generative AI
 - User-friendly interface built with Streamlit
@@ -59,7 +61,7 @@ GitHub Issue Guide is a Streamlit-based web application that provides step-by-st
 
 4. Enter a GitHub issue URL in the input field and click "Get Guidance".
 
-5. The app will generate and display step-by-step guidance for solving the issue.
+5. The app will clone the repository, extract the directory structure, fetch issue details, and generate step-by-step guidance for solving the issue.
 
 ## Dependencies
 
@@ -67,6 +69,12 @@ GitHub Issue Guide is a Streamlit-based web application that provides step-by-st
 - requests
 - python-dotenv
 - google-generativeai
+- gitpython
+- langchain_google_genai
+- langchain_huggingface
+- langchain_community.vectorstores
+- langchain.chains
+- langchain_core.prompts
 
 For a complete list of dependencies, see `requirements.txt`.
 
@@ -77,9 +85,3 @@ Contributions to the GitHub Issue Guide project are welcome! Please feel free to
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Google Generative AI for providing the AI model
-- GitHub for their API
-- Streamlit for the web app framework

@@ -2,8 +2,15 @@ import streamlit as st
 import requests
 import os
 from dotenv import load_dotenv
-from google.generativeai import GenerativeModel, configure
+from google.generativeai import configure
 from git import Repo
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate
+from data_utils import clone_repo, get_dir_struct_str, get_issue_details, create_documents
 # Load environment variables
 load_dotenv()
 
@@ -11,77 +18,66 @@ load_dotenv()
 configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Initialize Generative AI model
-model = GenerativeModel("gemini-1.5-flash")
+llm = ChatGoogleGenerativeAI(
+    model="gemini-1.5-flash",
+    temperature=0,
+    max_tokens=None,
+    timeout=None,
+    max_retries=2,
+    # other params...
+)
 
-def download_repo(repo_url):
-    repo = None
-    repo_dir = repo_url.split("/")[-1].split(".")[0]
-    download_dir = os.path.join("temp",repo_dir)
-    try:
-        if not os.path.exists(download_dir):
-            os.makedirs(download_dir)
-            print("Downloading Repo..")
-            repo = Repo.clone_from(repo_url, download_dir)
-            print("Download complete.")
-        else:
-            print("Repo already downloaded..")
-            repo = Repo(download_dir)
-    except Exception as e:
-        print(e)
-    return repo
 
-def get_dir_struct_str(tree, indent_level=0):
-    tree_str = ""
-    indent = " " * (indent_level * 4)  # Indentation for readability
 
-    for item in tree:
-        if item.type == "tree":  # If it's a directory (tree)
-            tree_str += f"{indent}{item.name} {{\n"  # Opening brace for directory
-            tree_str += get_dir_struct_str(item, indent_level + 1)  # Recursively process subdirectories
-            tree_str += f"{indent}}}\n"  # Closing brace for directory
-        else:  # If it's a file (blob)
-            tree_str += f"{indent}{item.name}\n"  # File name without braces
 
-    return tree_str
+def generate_guidance(clone_dir, repo_structure, issue_data):
+    documents = create_documents(clone_dir)
 
-def get_issue_details(issue_url):
-    # Extract owner, repo, and issue number from the URL
-    parts = issue_url.split('/')
-    owner, repo = parts[-4], parts[-3]
-    issue_number = parts[-1]
-    
-    # Fetch issue details from GitHub API
-    headers = {"Authorization": f"token {os.getenv('GITHUB_TOKEN')}"}
-    response = requests.get(f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}", headers=headers)
-    print(response.json())
-    return response.json()
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-def generate_guidance(issue_data):
-    prompt = f"""As an expert GitHub guide, provide step-by-step guidance for a novice GitHub user on how to solve the following issue:
+    # Embed
+    vectorstore = Chroma.from_documents(documents=documents, embedding=embeddings)
 
-Title: {issue_data['title']}
-Description: {issue_data['body']}
+    retriever = vectorstore.as_retriever()
 
-Your response should be structured as follows:
 
-Issue Explanation:
-  - Explain what the issue is about
-  - Clarify any technical terms or concepts that a novice might not understand
-  - Explain why this issue is important to address
+    # 2. Incorporate the retriever into a question-answering chain.
+    system_prompt = (
+    """You are an expert open source software developer.
+        provide step-by-step guidance for a beginner GitHub user on how to solve the given issue
+        Use the following pieces of retrieved context to provide the guidance
+        If you don't know the answer, say that you don't know.
+        The repository structure is as follows: {repo_structure}
+        Your response should be structured as follows:
 
-Step-by-step Guidance:
-   Include detailed information on:
-    1. Setting up the development environment  
-    2. Forking the repository  
-    3. Creating a new branch  
-    4. Making the necessary changes  
-    5. Committing and pushing the changes  
-    6. Creating a pull request
+        Issue Explanation:
+        - Explain what the issue is about
+        - Clarify any technical terms or concepts that a beginner might not understand
+        - Explain why this issue is important to address
 
-Provide clear, concise steps that a beginner can easily follow."""
+        Step-by-Step Guidance:
+        Based on the retrieved context, repository structure and issue details, provide step-by-step guidance, specifying the exact lines of code to modify in order to resolve the issue.
 
-    result = model.generate_content(prompt)
-    return result.text
+        Provide clear, concise steps that a beginner can easily follow.
+        \n\n
+        {context}"""
+    )
+
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "{input}"),
+        ]
+    )
+
+    question_answer_chain = create_stuff_documents_chain(llm, prompt)
+    rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+
+    #using only title and body of the issue
+    issue_title_body = f"Title: {issue_data['title']} Description: {issue_data['body']}"
+
+    guidance = rag_chain.invoke({"input": issue_title_body, "repo_structure": repo_structure})
+    return guidance['answer']
 
 st.title("GitHub Issue Guide")
 
@@ -89,14 +85,14 @@ issue_url = st.text_input("Enter GitHub issue URL")
 
 if st.button("Get Guidance"):
     if issue_url:
-        with st.spinner("Downloading repository..."):
+        with st.spinner("Cloning repository..."):
             try:
                 repo_url = issue_url.split("/issues")[0]
-                repo = download_repo(repo_url)
+                repo, clone_dir = clone_repo(repo_url)
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
         
-        with st.spinner("Creating directory structure..."):            
+        with st.spinner("Extracting directory structure..."):            
             try:
                 # Get the root tree of the repo
                 repo_tree = repo.tree()
@@ -116,7 +112,7 @@ if st.button("Get Guidance"):
         
         with st.spinner("Generating guidance..."):
             try:
-                guidance = generate_guidance(issue_data)
+                guidance = generate_guidance(clone_dir, repo_structure, issue_data)
                 st.markdown(guidance)
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
